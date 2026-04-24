@@ -54,6 +54,14 @@ public class Main {
     // =========================================================
 
     public static void main(String[] args) {
+        // Parsear argumentos opcionales
+        String outputFile = null;
+        for (int i = 0; i < args.length; i++) {
+            if ("--output".equals(args[i]) && i + 1 < args.length) {
+                outputFile = args[i + 1];
+            }
+        }
+
         System.out.println("╔══════════════════════════════════════════════════════════════╗");
         System.out.println("║   ANÁLISIS DE ALGORITMOS DE MULTIPLICACIÓN DE MATRICES      ║");
         System.out.println("╠══════════════════════════════════════════════════════════════╣");
@@ -67,7 +75,9 @@ public class Main {
 
         MatrixGenerator generator = new MatrixGenerator();
         TestCaseRepository testCaseRepo = new TestCaseRepository();
-        ExecutionResultRepository resultRepo = new ExecutionResultRepository();
+        ExecutionResultRepository resultRepo = outputFile != null
+                ? new ExecutionResultRepository("secuencial", outputFile)
+                : new ExecutionResultRepository();
         ChartDataExporter chartExporter = new ChartDataExporter();
         Timer timer = new Timer();
 

@@ -15,7 +15,9 @@ import java.util.*;
  * 1. Tabla pivote: columnas = algoritmos, filas = tamaños (promedios)
  * 2. Resumen estadístico: promedio, mínimo, máximo por algoritmo y tamaño
  *
- * NOTA: Usa Locale.US para forzar punto decimal en CSV.
+ * NOTA: Los resultados detallados (con columnas lenguaje y tipo_ejecucion)
+ * se generan desde ExecutionResultRepository.
+ * Usa Locale.US para forzar punto decimal en CSV.
  */
 public class ChartDataExporter {
 

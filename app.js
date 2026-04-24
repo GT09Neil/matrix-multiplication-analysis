@@ -1,205 +1,454 @@
 /**
- * app.js - Lógica de parsing y graficación
+ * app.js — Dashboard interactivo para Matrix Multiplication Analytics
+ *
+ * Flujo:
+ * 1. Usuario selecciona modo (Java / Python / Comparación)
+ * 2. Presiona "Ejecutar" → POST /api/execute
+ * 3. Servidor ejecuta algoritmos y devuelve datos
+ * 4. Gráfica y estadísticas se renderizan automáticamente
+ *
+ * También permite cargar resultados históricos desde /api/results
  */
 
+// ── Estado global ──
 let rawData = [];
 let chartInstance = null;
+let currentMode = 'java';
+let currentSize = null;
+let currentView = 'cases';
+let isExecuting = false;
 
-const fileInput = document.getElementById('csvFile');
+// ── Referencias DOM ──
+const btnExecute = document.getElementById('btnExecute');
+const statusText = document.getElementById('statusText');
 const sizeFilter = document.getElementById('sizeFilter');
 const ctx = document.getElementById('resultsChart').getContext('2d');
 
-// Escuchar carga de archivo
-fileInput.addEventListener('change', handleFile);
+// ══════════════════════════════════════════════════════
+//  INICIALIZACIÓN
+// ══════════════════════════════════════════════════════
 
-// Escuchar cambios en el filtro
-sizeFilter.addEventListener('change', updateChart);
+document.addEventListener('DOMContentLoaded', () => {
+    // Mode card selection
+    document.querySelectorAll('.mode-card').forEach(card => {
+        card.addEventListener('click', () => {
+            if (isExecuting) return;
+            document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            currentMode = card.dataset.mode;
+        });
+    });
 
-function handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+    // Execute button
+    btnExecute.addEventListener('click', executeAnalysis);
 
-    const reader = new FileReader();
-    reader.onload = function(event) {
-        parseCSV(event.target.result);
-    };
-    reader.readAsText(file);
+    // Size filter
+    sizeFilter.addEventListener('change', () => {
+        currentSize = parseInt(sizeFilter.value);
+        renderCurrentView();
+    });
+
+    // View tabs
+    document.querySelectorAll('.tab-btn[data-view]').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab-btn[data-view]').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            currentView = tab.dataset.view;
+            renderCurrentView();
+        });
+    });
+
+    // Load historical results
+    loadHistory();
+});
+
+
+// ══════════════════════════════════════════════════════
+//  EJECUCIÓN DE ALGORITMOS
+// ══════════════════════════════════════════════════════
+
+async function executeAnalysis() {
+    if (isExecuting) return;
+    isExecuting = true;
+
+    btnExecute.disabled = true;
+    setStatus('loading', `Ejecutando análisis en modo "${currentMode}"... Esto puede tomar unos segundos.`);
+
+    try {
+        const response = await fetch('/api/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode: currentMode })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.data && result.data.length > 0) {
+            rawData = parseServerData(result.data);
+
+            const filesStr = result.files.join(', ');
+            const timingStr = Object.entries(result.timings || {})
+                .map(([lang, secs]) => `${lang}: ${secs}s`)
+                .join(' · ');
+
+            setStatus('success', `✓ ${rawData.length} resultados cargados (${filesStr}) · ${timingStr}`);
+            showResults();
+        } else {
+            const errMsg = (result.errors || []).join('; ') || 'Sin datos generados';
+            setStatus('error', `Error: ${errMsg}`);
+        }
+    } catch (err) {
+        setStatus('error', `Error de conexión: ${err.message}. ¿Está corriendo el servidor?`);
+    }
+
+    isExecuting = false;
+    btnExecute.disabled = false;
+    loadHistory();
 }
 
-/**
- * Parsea el CSV considerando que los números pueden venir con punto decimal
- * @param {string} text Contenido del archivo
- */
-function parseCSV(text) {
+
+// ══════════════════════════════════════════════════════
+//  HISTORIAL DE RESULTADOS
+// ══════════════════════════════════════════════════════
+
+async function loadHistory() {
+    const list = document.getElementById('historyList');
+    try {
+        const res = await fetch('/api/results');
+        const data = await res.json();
+
+        if (data.files.length === 0) {
+            list.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem;">No hay resultados anteriores</div>';
+            return;
+        }
+
+        list.innerHTML = data.files.map(f => {
+            const badge = getBadgeClass(f.name);
+            return `<div class="history-item" onclick="loadHistoryFile('${f.name}')">
+                <span class="history-name">${f.name}</span>
+                <span class="history-badge ${badge.cls}">${badge.label}</span>
+            </div>`;
+        }).join('');
+    } catch {
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;text-align:center;padding:1rem;">Servidor no disponible</div>';
+    }
+}
+
+function getBadgeClass(name) {
+    if (name.startsWith('java')) return { cls: 'java', label: 'Java' };
+    if (name.startsWith('python')) return { cls: 'python', label: 'Python' };
+    if (name.includes('results_java')) return { cls: 'java', label: 'Java' };
+    if (name.includes('results_python')) return { cls: 'python', label: 'Python' };
+    return { cls: 'other', label: 'Otro' };
+}
+
+async function loadHistoryFile(filename) {
+    setStatus('loading', `Cargando ${filename}...`);
+    try {
+        const res = await fetch(`/api/results/${filename}`);
+        const text = await res.text();
+
+        rawData = parseCSVText(text);
+        if (rawData.length > 0) {
+            setStatus('success', `✓ ${rawData.length} resultados cargados desde ${filename}`);
+            showResults();
+        } else {
+            setStatus('error', 'El archivo no contiene datos válidos');
+        }
+    } catch (err) {
+        setStatus('error', `Error cargando archivo: ${err.message}`);
+    }
+}
+
+
+// ══════════════════════════════════════════════════════
+//  PARSING DE DATOS
+// ══════════════════════════════════════════════════════
+
+function parseServerData(serverData) {
+    return serverData.map(row => ({
+        algoritmo: row['algoritmo'] || '',
+        tamano: parseInt(row['tamaño'] || row['tamano'] || '0'),
+        caso: row['caso'] || '',
+        tiempo_ns: parseInt(row['tiempo_ns'] || '0'),
+        tiempo_ms: parseFloat(row['tiempo_ms'] || '0'),
+        lenguaje: row['lenguaje'] || 'Java',
+        tipo_ejecucion: row['tipo_ejecucion'] || 'secuencial'
+    })).filter(r => !isNaN(r.tiempo_ms) && r.tiempo_ms > 0);
+}
+
+function parseCSVText(text) {
     const lines = text.trim().split('\n');
-    if (lines.length < 2) return;
+    if (lines.length < 2) return [];
 
-    rawData = [];
-    const sizes = new Set();
+    const header = lines[0].replace(/\r/g, '').split(',');
+    const hasLang = header.includes('lenguaje');
+    const hasExec = header.includes('tipo_ejecucion');
+    const data = [];
 
-    // Procesar líneas
     for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',');
-        if (values.length < 5) continue;
+        const vals = lines[i].replace(/\r/g, '').split(',');
+        if (vals.length < 5) continue;
 
-        // Limpiar valores y convertir a tipos correctos
         const row = {
-            algoritmo: values[0].trim(),
-            tamano: parseInt(values[1]),
-            caso: values[2].trim(),
-            tiempo_ms: parseFloat(values[4])
+            algoritmo: vals[0].trim(),
+            tamano: parseInt(vals[1]),
+            caso: vals[2].trim(),
+            tiempo_ns: parseInt(vals[3]),
+            tiempo_ms: parseFloat(vals[4]),
+            lenguaje: hasLang && vals[5] ? vals[5].trim() : 'Java',
+            tipo_ejecucion: hasExec && vals[6] ? vals[6].trim() : 'secuencial'
         };
 
-        // Validar que el tiempo sea un número válido
-        if (!isNaN(row.tiempo_ms)) {
-            rawData.push(row);
-            sizes.add(row.tamano);
+        if (!isNaN(row.tiempo_ms) && row.tiempo_ms > 0) data.push(row);
+    }
+    return data;
+}
+
+
+// ══════════════════════════════════════════════════════
+//  MOSTRAR RESULTADOS
+// ══════════════════════════════════════════════════════
+
+function showResults() {
+    // Mostrar paneles
+    document.getElementById('filtersCard').classList.remove('hidden');
+    document.getElementById('chartCard').classList.remove('hidden');
+    document.getElementById('statsCard').classList.remove('hidden');
+    document.getElementById('chartPlaceholder').classList.add('hidden');
+
+    // Popular tamaños
+    const sizes = [...new Set(rawData.map(d => d.tamano))].sort((a, b) => a - b);
+    sizeFilter.innerHTML = sizes.map(s => `<option value="${s}">${s} × ${s}</option>`).join('');
+    currentSize = sizes[0];
+
+    // Determinar si mostrar tab comparación
+    const langs = [...new Set(rawData.map(d => d.lenguaje))];
+    const compareTab = document.getElementById('viewCompare');
+    if (langs.length >= 2) {
+        compareTab.classList.remove('hidden');
+    } else {
+        compareTab.classList.add('hidden');
+        if (currentView === 'compare') {
+            currentView = 'cases';
+            document.querySelectorAll('.tab-btn[data-view]').forEach(t => t.classList.remove('active'));
+            document.getElementById('viewCases').classList.add('active');
         }
     }
 
-    if (rawData.length === 0) {
-        alert("El archivo no contiene datos válidos o el formato es incorrecto.");
-        return;
-    }
-
-    // Actualizar selector de tamaños
-    const sortedSizes = Array.from(sizes).sort((a, b) => a - b);
-    sizeFilter.innerHTML = sortedSizes.map(s => `<option value="${s}">${s} x ${s}</option>`).join('');
-    
-    // Auto-seleccionar el primer tamaño y mostrar estadísticas
-    sizeFilter.value = sortedSizes[0];
-    document.getElementById('summary').style.display = 'grid';
-    updateChart();
+    renderCurrentView();
 }
 
-/**
- * Actualiza la gráfica basada en el filtro de tamaño seleccionado
- */
-function updateChart() {
-    const selectedSize = parseInt(sizeFilter.value);
-    const filtered = rawData.filter(d => d.tamano === selectedSize);
+function renderCurrentView() {
+    if (rawData.length === 0) return;
 
-    // Obtener lista única de algoritmos para el eje X
-    const algos = [...new Set(filtered.map(d => d.algoritmo))];
-    
-    // Preparar datasets para Caso 1 y Caso 2
-    const dataCase1 = algos.map(a => {
-        const entry = filtered.find(d => d.algoritmo === a && d.caso === "1");
-        return entry ? entry.tiempo_ms : 0;
-    });
+    const filtered = rawData.filter(d => d.tamano === currentSize);
+    if (filtered.length === 0) return;
 
-    const dataCase2 = algos.map(a => {
-        const entry = filtered.find(d => d.algoritmo === a && d.caso === "2");
-        return entry ? entry.tiempo_ms : 0;
-    });
+    if (currentView === 'compare') {
+        renderCompareChart(filtered);
+    } else {
+        renderCasesChart(filtered);
+    }
 
-    renderChart(algos, dataCase1, dataCase2);
     updateStats(filtered);
+    updateComparison(filtered);
 }
 
-/**
- * Renderiza la gráfica usando Chart.js
- */
-function renderChart(labels, case1, case2) {
-    if (chartInstance) {
-        chartInstance.destroy();
-    }
+
+// ══════════════════════════════════════════════════════
+//  GRÁFICAS
+// ══════════════════════════════════════════════════════
+
+function renderCasesChart(filtered) {
+    const algos = [...new Set(filtered.map(d => d.algoritmo))];
+    const langs = [...new Set(filtered.map(d => d.lenguaje))];
+    const datasets = [];
+
+    const colors = {
+        'Java':   { bgs: ['rgba(249,115,22,0.7)', 'rgba(249,115,22,0.45)'], border: '#f97316' },
+        'Python': { bgs: ['rgba(56,189,248,0.7)', 'rgba(56,189,248,0.45)'], border: '#38bdf8' }
+    };
+    const fallbackColors = [
+        { bg: 'rgba(74,222,128,0.7)', border: '#4ade80' },
+        { bg: 'rgba(251,191,36,0.7)', border: '#fbbf24' }
+    ];
+
+    langs.forEach(lang => {
+        const langData = filtered.filter(d => d.lenguaje === lang);
+        const cases = [...new Set(langData.map(d => d.caso))].sort();
+        const c = colors[lang] || { bgs: [fallbackColors[0].bg, fallbackColors[1].bg], border: fallbackColors[0].border };
+
+        cases.forEach((cas, idx) => {
+            datasets.push({
+                label: langs.length > 1 ? `${lang} — Caso ${cas}` : `Caso ${cas}`,
+                data: algos.map(a => {
+                    const entry = langData.find(d => d.algoritmo === a && d.caso === cas);
+                    return entry ? entry.tiempo_ms : 0;
+                }),
+                backgroundColor: c.bgs[idx % c.bgs.length],
+                borderColor: c.border,
+                borderWidth: 1,
+                borderRadius: 4
+            });
+        });
+    });
+
+    const langLabel = langs.length > 1 ? 'Java + Python' : langs[0];
+    document.getElementById('chartTitle').textContent =
+        `Rendimiento por algoritmo — ${langLabel} (${currentSize}×${currentSize})`;
+    drawChart(algos, datasets);
+}
+
+function renderCompareChart(filtered) {
+    const algos = [...new Set(filtered.map(d => d.algoritmo))];
+
+    const avgByAlgo = (lang) => algos.map(a => {
+        const entries = filtered.filter(d => d.algoritmo === a && d.lenguaje === lang);
+        if (entries.length === 0) return 0;
+        return entries.reduce((s, e) => s + e.tiempo_ms, 0) / entries.length;
+    });
+
+    const datasets = [
+        {
+            label: 'Java (promedio)',
+            data: avgByAlgo('Java'),
+            backgroundColor: 'rgba(249,115,22,0.75)',
+            borderColor: '#f97316',
+            borderWidth: 1, borderRadius: 4
+        },
+        {
+            label: 'Python (promedio)',
+            data: avgByAlgo('Python'),
+            backgroundColor: 'rgba(56,189,248,0.75)',
+            borderColor: '#38bdf8',
+            borderWidth: 1, borderRadius: 4
+        }
+    ];
+
+    document.getElementById('chartTitle').textContent =
+        `Java vs Python — Comparación de rendimiento (${currentSize}×${currentSize})`;
+    drawChart(algos, datasets);
+}
+
+function drawChart(labels, datasets) {
+    if (chartInstance) chartInstance.destroy();
 
     chartInstance = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Caso 1 (Matriz A)',
-                    data: case1,
-                    backgroundColor: 'rgba(56, 189, 248, 0.8)',
-                    borderColor: '#38bdf8',
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    hoverBackgroundColor: '#38bdf8',
-                },
-                {
-                    label: 'Caso 2 (Matriz B)',
-                    data: case2,
-                    backgroundColor: 'rgba(251, 113, 133, 0.8)',
-                    borderColor: '#fb7185',
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    hoverBackgroundColor: '#fb7185',
-                }
-            ]
-        },
+        data: { labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: {
-                duration: 1000,
-                easing: 'easeOutQuart'
-            },
+            animation: { duration: 700, easing: 'easeOutQuart' },
             scales: {
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.05)', drawBorder: false },
-                    ticks: { 
-                        color: '#94a3b8', 
-                        font: { size: 11 },
-                        callback: v => v + ' ms' 
-                    },
-                    title: { display: true, text: 'Tiempo de ejecución (ms)', color: '#64748b' }
+                    grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+                    ticks: { color: '#94a3b8', font: { size: 11, family: 'Outfit' }, callback: v => v + ' ms' },
+                    title: { display: true, text: 'Tiempo (ms)', color: '#64748b', font: { family: 'Outfit' } }
                 },
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#94a3b8', font: { size: 10, weight: '500' }, maxRotation: 45, minRotation: 45 }
+                    ticks: { color: '#94a3b8', font: { size: 9, weight: '500', family: 'Outfit' }, maxRotation: 45, minRotation: 45 }
                 }
             },
             plugins: {
                 legend: {
-                    position: 'top',
-                    align: 'end',
-                    labels: { 
-                        color: '#f1f5f9', 
-                        font: { family: 'Outfit', size: 12, weight: '600' },
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        padding: 20
-                    }
+                    position: 'top', align: 'end',
+                    labels: { color: '#f1f5f9', font: { family: 'Outfit', size: 11, weight: '600' }, usePointStyle: true, pointStyle: 'circle', padding: 14, boxWidth: 8 }
                 },
                 tooltip: {
                     backgroundColor: '#1e293b',
-                    titleFont: { size: 13, family: 'Outfit' },
+                    titleFont: { size: 13, family: 'Outfit', weight: '600' },
                     bodyFont: { size: 12, family: 'Outfit' },
-                    padding: 12,
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    borderWidth: 1,
-                    displayColors: true,
-                    callbacks: {
-                        label: function(context) {
-                            return `${context.dataset.label}: ${context.raw.toFixed(4)} ms`;
-                        }
-                    }
+                    padding: 10, borderColor: 'rgba(255,255,255,0.08)', borderWidth: 1,
+                    callbacks: { label: c => `${c.dataset.label}: ${c.raw.toFixed(4)} ms` }
                 }
             }
         }
     });
 }
 
-/**
- * Actualiza las tarjetas de estadísticas rápidas
- */
-function updateStats(data) {
-    if (data.length === 0) return;
 
-    // Encontrar el mejor tiempo absoluto en este tamaño
+// ══════════════════════════════════════════════════════
+//  ESTADÍSTICAS
+// ══════════════════════════════════════════════════════
+
+function updateStats(data) {
     const sorted = [...data].sort((a, b) => a.tiempo_ms - b.tiempo_ms);
     const best = sorted[0];
 
-    const fastestEl = document.getElementById('fastestAlgo');
-    const bestTimeEl = document.getElementById('bestTime');
-    const totalAlgosEl = document.getElementById('totalAlgos');
+    document.getElementById('bestAlgo').textContent = best.algoritmo;
+    document.getElementById('bestAlgoSub').textContent = `${best.lenguaje} — ${best.tiempo_ms.toFixed(4)} ms`;
 
-    // Animación simple de actualización
-    fastestEl.innerText = best.algoritmo;
-    bestTimeEl.innerText = best.tiempo_ms.toFixed(4);
-    totalAlgosEl.innerText = [...new Set(data.map(d => d.algoritmo))].length;
+    // Java
+    const jd = data.filter(d => d.lenguaje === 'Java');
+    if (jd.length > 0) {
+        const bj = jd.sort((a, b) => a.tiempo_ms - b.tiempo_ms)[0];
+        document.getElementById('bestJava').textContent = bj.tiempo_ms.toFixed(4) + ' ms';
+        document.getElementById('bestJavaSub').textContent = bj.algoritmo;
+    } else {
+        document.getElementById('bestJava').textContent = 'N/A';
+        document.getElementById('bestJavaSub').textContent = 'Sin datos';
+    }
+
+    // Python
+    const pd = data.filter(d => d.lenguaje === 'Python');
+    if (pd.length > 0) {
+        const bp = pd.sort((a, b) => a.tiempo_ms - b.tiempo_ms)[0];
+        document.getElementById('bestPython').textContent = bp.tiempo_ms.toFixed(4) + ' ms';
+        document.getElementById('bestPythonSub').textContent = bp.algoritmo;
+    } else {
+        document.getElementById('bestPython').textContent = 'N/A';
+        document.getElementById('bestPythonSub').textContent = 'Sin datos';
+    }
+
+    document.getElementById('totalExecs').textContent = data.length;
+    document.getElementById('totalExecsSub').textContent = `${[...new Set(data.map(d => d.algoritmo))].length} algoritmos`;
+}
+
+function updateComparison(data) {
+    const card = document.getElementById('compareCard');
+    const jd = data.filter(d => d.lenguaje === 'Java');
+    const pd = data.filter(d => d.lenguaje === 'Python');
+
+    if (jd.length > 0 && pd.length > 0) {
+        card.classList.remove('hidden');
+        const avg = arr => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+        const jt = jd.map(d => d.tiempo_ms);
+        document.getElementById('cmpJavaAvg').textContent = avg(jt).toFixed(4) + ' ms';
+        document.getElementById('cmpJavaMin').textContent = Math.min(...jt).toFixed(4) + ' ms';
+        document.getElementById('cmpJavaMax').textContent = Math.max(...jt).toFixed(4) + ' ms';
+        document.getElementById('cmpJavaCount').textContent = jd.length;
+
+        const pt = pd.map(d => d.tiempo_ms);
+        document.getElementById('cmpPythonAvg').textContent = avg(pt).toFixed(4) + ' ms';
+        document.getElementById('cmpPythonMin').textContent = Math.min(...pt).toFixed(4) + ' ms';
+        document.getElementById('cmpPythonMax').textContent = Math.max(...pt).toFixed(4) + ' ms';
+        document.getElementById('cmpPythonCount').textContent = pd.length;
+    } else {
+        card.classList.add('hidden');
+    }
+}
+
+
+// ══════════════════════════════════════════════════════
+//  UTILIDADES
+// ══════════════════════════════════════════════════════
+
+function setStatus(type, msg) {
+    statusText.className = 'status-text';
+    if (type === 'loading') {
+        statusText.innerHTML = `<span class="spinner"></span>${msg}`;
+    } else if (type === 'error') {
+        statusText.classList.add('error');
+        statusText.textContent = msg;
+    } else if (type === 'success') {
+        statusText.classList.add('success');
+        statusText.textContent = msg;
+    } else {
+        statusText.textContent = msg;
+    }
 }
