@@ -58,11 +58,15 @@ matrix-multiplication/
 
 **Modos de ejecución (`POST /api/execute`):**
 
+Request body: `{ mode: "java"|"python"|"comparacion", size: 256 }`
+
 | Modo | Acción | Archivos generados |
-|------|--------|--------------------|
-| `java` | Ejecuta `java -cp out main.Main --output <path>` | `java_HH-MM-SS.csv` |
-| `python` | Ejecuta `python -m python.main --output <path>` | `python_HH-MM-SS.csv` |
-| `comparacion` | Ejecuta ambos **en paralelo** (2 hilos) | `java_HH-MM-SS.csv` + `python_HH-MM-SS.csv` |
+|------|--------|---------|
+| `java` | Ejecuta `java -cp out main.Main --output <path> [--size N]` | `java_256_HH-MM-SS.csv` |
+| `python` | Ejecuta `python -m python.main --output <path> [--size N]` | `python_256_HH-MM-SS.csv` |
+| `comparacion` | Ejecuta ambos **en paralelo** (2 hilos) | `java_256_HH-MM-SS.csv` + `python_256_HH-MM-SS.csv` |
+
+> Si no se envía `size`, ambos lenguajes ejecutan con los tamaños predeterminados (16, 32, 64, 128) y el nombre del archivo omite el tamaño.
 
 **Decisión de diseño:** Se eligió `http.server` de la biblioteca estándar para evitar dependencias externas (no se requiere instalar Flask, Django, etc.), manteniendo el proyecto autocontenido y fácil de ejecutar en cualquier máquina con Python.
 
@@ -139,11 +143,13 @@ Usuario selecciona modo → Click "Ejecutar"
 
 **Propósito:** Punto de entrada que ejecuta los 15 algoritmos con matrices cargadas desde JSON, mide tiempos y exporta CSV.
 
-**Parámetro `--output`:** Permite al servidor controlar la ruta del archivo CSV de salida.
+**Parámetros CLI:**
 
 ```bash
-java -cp out main.Main                           # Nombre automático
-java -cp out main.Main --output data/results/java_18-09-00.csv  # Nombre controlado
+java -cp out main.Main                                               # Tamaños predeterminados
+java -cp out main.Main --size 256                                    # Solo tamaño 256
+java -cp out main.Main --output data/results/java_256_18-09-00.csv   # Nombre controlado
+java -cp out main.Main --output ... --size 256                       # Ambos parámetros
 ```
 
 #### `algorithms/` — 15 algoritmos
@@ -181,12 +187,14 @@ java -cp out main.Main --output data/results/java_18-09-00.csv  # Nombre control
 
 **Propósito:** Equivalente exacto de `Main.java`. Ejecuta los 15 algoritmos, mide tiempos con `time.perf_counter_ns()` y exporta CSV.
 
-**Parámetros:**
+**Parámetros CLI:**
 
 ```bash
-python -m python.main                            # Nombre automático
-python -m python.main --output data/results/python_18-09-00.csv  # Controlado
-python -m python.main --mode concurrente         # Tipo de ejecución
+python -m python.main                                                  # Tamaños predeterminados
+python -m python.main --size 512                                       # Solo tamaño 512
+python -m python.main --output data/results/python_512_18-09-00.csv    # Nombre controlado
+python -m python.main --mode concurrente                               # Tipo de ejecución
+python -m python.main --output ... --size 256 --mode secuencial        # Todos los parámetros
 ```
 
 #### `algorithms/` — 15 algoritmos (réplica de Java)
@@ -232,8 +240,10 @@ Contiene todos los archivos CSV de resultados:
 
 | Patrón | Origen | Descripción |
 |--------|--------|-------------|
-| `java_HH-MM-SS.csv` | Servidor | Resultados Java (nomenclatura nueva) |
-| `python_HH-MM-SS.csv` | Servidor | Resultados Python (nomenclatura nueva) |
+| `java_256_HH-MM-SS.csv` | Servidor | Resultados Java tamaño específico |
+| `python_256_HH-MM-SS.csv` | Servidor | Resultados Python tamaño específico |
+| `java_HH-MM-SS.csv` | Servidor | Resultados Java todos los tamaños |
+| `python_HH-MM-SS.csv` | Servidor | Resultados Python todos los tamaños |
 | `chart_pivot_*.csv` | Java (ChartDataExporter) | Tabla pivote para análisis externo |
 | `chart_summary_*.csv` | Java (ChartDataExporter) | Resumen estadístico |
 

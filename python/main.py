@@ -153,15 +153,18 @@ def run_algorithm(name, size, case_id, timer, collector, algorithm_fn):
     print(f"    {name:<30} → {millis:>12.4f} ms")
 
 
-def main(execution_type="secuencial", output_path=None):
+def main(execution_type="secuencial", output_path=None, single_size=None):
     """Función principal que ejecuta todos los algoritmos."""
+    # Si se especifica un tamaño único, usar solo ese; si no, usar los predeterminados
+    sizes = [single_size] if single_size else MATRIX_SIZES
+
     print("╔══════════════════════════════════════════════════════════════╗")
     print("║   ANÁLISIS DE ALGORITMOS — PYTHON                          ║")
     print("╠══════════════════════════════════════════════════════════════╣")
-    print(f"║   Tamaños: {str(MATRIX_SIZES):<49} ║")
+    print(f"║   Tamaños: {str(sizes):<49} ║")
     print(f"║   Casos por tamaño: {NUM_CASES:<40} ║")
     print(f"║   Algoritmos: {NUM_ALGORITHMS:<46} ║")
-    total_exec = len(MATRIX_SIZES) * NUM_CASES * NUM_ALGORITHMS
+    total_exec = len(sizes) * NUM_CASES * NUM_ALGORITHMS
     print(f"║   Total de ejecuciones: {total_exec:<36} ║")
     print(f"║   Tipo de ejecución: {execution_type:<39} ║")
     print("╚══════════════════════════════════════════════════════════════╝")
@@ -171,7 +174,7 @@ def main(execution_type="secuencial", output_path=None):
     collector = ResultCollector(execution_type, output_path)
     global_start = time.perf_counter_ns()
 
-    for size in MATRIX_SIZES:
+    for size in sizes:
         print("━" * 62)
         print(f"  TAMAÑO DE MATRIZ: {size} x {size}")
         print("━" * 62)
@@ -262,6 +265,7 @@ def main(execution_type="secuencial", output_path=None):
 if __name__ == "__main__":
     exec_type = "secuencial"
     out_path = None
+    mat_size = None
     i = 1
     while i < len(sys.argv):
         if sys.argv[i] == "--mode" and i + 1 < len(sys.argv):
@@ -270,6 +274,9 @@ if __name__ == "__main__":
         elif sys.argv[i] == "--output" and i + 1 < len(sys.argv):
             out_path = sys.argv[i + 1]
             i += 2
+        elif sys.argv[i] == "--size" and i + 1 < len(sys.argv):
+            mat_size = int(sys.argv[i + 1])
+            i += 2
         else:
             i += 1
-    main(exec_type, out_path)
+    main(exec_type, out_path, mat_size)

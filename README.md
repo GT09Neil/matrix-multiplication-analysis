@@ -74,8 +74,9 @@ El servidor se inicia en **http://localhost:8080**.
    - **☕ Java** → ejecuta los 15 algoritmos solo en Java
    - **🐍 Python** → ejecuta los 15 algoritmos solo en Python
    - **⚡ Comparación** → ejecuta ambos lenguajes simultáneamente
-3. Presionar **▶ Ejecutar Análisis**
-4. Los resultados se cargan y grafican **automáticamente**
+3. Seleccionar el **tamaño de matriz** (2 a 1024, potencias de 2) o "Todos" para los predeterminados
+4. Presionar **▶ Ejecutar Análisis**
+5. Los resultados se cargan y grafican **automáticamente**
 
 ### Ejecución alternativa (sin servidor)
 
@@ -84,9 +85,11 @@ También puede ejecutarse desde la línea de comandos:
 ```bash
 # Solo Java
 java -cp out main.Main
+java -cp out main.Main --size 256
 
 # Solo Python
 python -m python.main
+python -m python.main --size 512
 
 # Ambos (orquestador CLI)
 python orchestrator.py                     # Concurrente
@@ -123,11 +126,13 @@ python orchestrator.py --mode sequential   # Secuencial
 
 Los archivos se generan con nombres claros que identifican el contenido:
 
-| Selección | Archivos generados | Ejemplo |
-|---|---|---|
-| Java | 1 archivo | `java_18-09-00.csv` |
-| Python | 1 archivo | `python_18-09-00.csv` |
-| Comparación | 2 archivos (mismo timestamp) | `java_18-10-00.csv` + `python_18-10-00.csv` |
+| Selección | Tamaño | Archivos generados | Ejemplo |
+|---|---|---|---|
+| Java | 256 | 1 archivo | `java_256_18-09-00.csv` |
+| Python | 512 | 1 archivo | `python_512_18-09-00.csv` |
+| Comparación | 64 | 2 archivos (mismo timestamp) | `java_64_18-10-00.csv` + `python_64_18-10-00.csv` |
+| Java | Todos | 1 archivo | `java_18-09-00.csv` |
+| Comparación | Todos | 2 archivos | `java_18-10-00.csv` + `python_18-10-00.csv` |
 
 ### Formato CSV unificado (7 columnas)
 
@@ -174,6 +179,7 @@ Cuando el usuario selecciona **Comparación**, el servidor ejecuta Java y Python
 | Función | Descripción |
 |---|---|
 | **Selección de modo** | Tarjetas interactivas para Java, Python o Comparación |
+| **Selección de tamaño** | Dropdown con potencias de 2 (2 a 1024) + advertencia para tamaños grandes |
 | **Ejecución automática** | Un clic ejecuta los algoritmos y carga los resultados |
 | **Filtro por tamaño** | Selector dinámico según los tamaños disponibles |
 | **Vista por caso** | Barras agrupadas por caso de prueba |
@@ -185,9 +191,10 @@ Cuando el usuario selecciona **Comparación**, el servidor ejecuta Java y Python
 ### Flujo automatizado
 
 1. **Seleccionar** → Java, Python o Comparación
-2. **Ejecutar** → El servidor lanza los procesos
-3. **Visualizar** → Gráficas y estadísticas se muestran automáticamente
-4. **No requiere** selección manual de archivos CSV
+2. **Elegir tamaño** → Potencia de 2 o "Todos" para los predeterminados
+3. **Ejecutar** → El servidor lanza los procesos con el tamaño elegido
+4. **Visualizar** → Gráficas y estadísticas se muestran automáticamente
+5. **No requiere** selección manual de archivos CSV
 
 ---
 

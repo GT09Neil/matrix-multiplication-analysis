@@ -56,20 +56,26 @@ public class Main {
     public static void main(String[] args) {
         // Parsear argumentos opcionales
         String outputFile = null;
+        int singleSize = -1;
         for (int i = 0; i < args.length; i++) {
             if ("--output".equals(args[i]) && i + 1 < args.length) {
                 outputFile = args[i + 1];
+            } else if ("--size".equals(args[i]) && i + 1 < args.length) {
+                singleSize = Integer.parseInt(args[i + 1]);
             }
         }
+
+        // Si se especifica --size, ejecutar solo ese tamaño; si no, usar los predeterminados
+        int[] matrixSizes = (singleSize > 0) ? new int[]{ singleSize } : MATRIX_SIZES;
 
         System.out.println("╔══════════════════════════════════════════════════════════════╗");
         System.out.println("║   ANÁLISIS DE ALGORITMOS DE MULTIPLICACIÓN DE MATRICES      ║");
         System.out.println("╠══════════════════════════════════════════════════════════════╣");
-        System.out.printf( "║   Tamaños: %-49s ║%n", java.util.Arrays.toString(MATRIX_SIZES));
+        System.out.printf( "║   Tamaños: %-49s ║%n", java.util.Arrays.toString(matrixSizes));
         System.out.printf( "║   Casos por tamaño: %-40d ║%n", NUM_CASES);
         System.out.printf( "║   Algoritmos: %-46d ║%n", NUM_ALGORITHMS);
         System.out.printf( "║   Total de ejecuciones: %-36d ║%n",
-                MATRIX_SIZES.length * NUM_CASES * NUM_ALGORITHMS);
+                matrixSizes.length * NUM_CASES * NUM_ALGORITHMS);
         System.out.println("╚══════════════════════════════════════════════════════════════╝");
         System.out.println();
 
@@ -83,7 +89,7 @@ public class Main {
 
         long globalStart = System.nanoTime();
 
-        for (int size : MATRIX_SIZES) {
+        for (int size : matrixSizes) {
             System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
             System.out.printf("  TAMAÑO DE MATRIZ: %d x %d%n", size, size);
             System.out.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

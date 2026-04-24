@@ -144,18 +144,22 @@ class APIHandler(http.server.BaseHTTPRequestHandler):
         """
         Ejecuta algoritmos según el modo seleccionado.
 
-        Modos:
-            'java'        → ejecuta solo Java
-            'python'      → ejecuta solo Python
-            'comparacion' → ejecuta ambos (concurrentemente)
+        Parámetros del request body:
+            mode: 'java' | 'python' | 'comparacion'
+            size: tamaño de la matriz (potencia de 2). Si no se envía, usa los predeterminados.
         """
         mode = params.get('mode', 'java')
+        size = params.get('size', None)  # None = usar todos los predeterminados
         timestamp = datetime.now().strftime("%H-%M-%S")
         os.makedirs(RESULTS_DIR, exist_ok=True)
+
+        # Construir prefijo de nombre con tamaño si se especificó
+        size_tag = f"_{size}" if size else ""
 
         response = {
             "success": True,
             "mode": mode,
+            "size": size,
             "timestamp": timestamp,
             "files": [],
             "data": [],
@@ -164,11 +168,11 @@ class APIHandler(http.server.BaseHTTPRequestHandler):
         }
 
         if mode == 'comparacion':
-            self._execute_comparison(timestamp, response)
+            self._execute_comparison(timestamp, size_tag, size, response)
         elif mode == 'java':
-            self._execute_java(timestamp, response)
+            self._execute_java(timestamp, size_tag, size, response)
         elif mode == 'python':
-            self._execute_python(timestamp, response)
+            self._execute_python(timestamp, size_tag, size, response)
         else:
             response["success"] = False
             response["errors"].append(f"Modo desconocido: {mode}")
@@ -178,15 +182,28 @@ class APIHandler(http.server.BaseHTTPRequestHandler):
 
         self.send_json(response)
 
-    def _execute_java(self, timestamp, response):
-        filename = f"java_{timestamp}.csv"
+    def _build_java_cmd(self, filepath, size):
+        """Construye el comando para ejecutar Java."""
+        cmd = ["java", "-cp", JAVA_OUT_DIR, "main.Main", "--output", filepath]
+        if size:
+            cmd.extend(["--size", str(size)])
+        return cmd
+
+    def _build_python_cmd(self, filepath, size):
+        """Construye el comando para ejecutar Python."""
+        cmd = [sys.executable, "-m", "python.main", "--output", filepath]
+        if size:
+            cmd.extend(["--size", str(size)])
+        return cmd
+
+    def _execute_java(self, timestamp, size_tag, size, response):
+        filename = f"java{size_tag}_{timestamp}.csv"
         filepath = os.path.join(RESULTS_DIR, filename)
 
-        print(f"  → Ejecutando Java...")
+        size_info = f" (tamaño {size})" if size else ""
+        print(f"  → Ejecutando Java{size_info}...")
         start = time.perf_counter()
-        success, stdout, stderr = self._run_process(
-            ["java", "-cp", JAVA_OUT_DIR, "main.Main", "--output", filepath]
-        )
+        success, stdout, stderr = self._run_process(self._build_java_cmd(filepath, size))
         elapsed = time.perf_counter() - start
         response["timings"]["java"] = round(elapsed, 2)
 
@@ -198,15 +215,14 @@ class APIHandler(http.server.BaseHTTPRequestHandler):
             response["errors"].append(f"Java falló: {stderr[:500]}")
             print(f"  ✗ Java falló: {stderr[:200]}")
 
-    def _execute_python(self, timestamp, response):
-        filename = f"python_{timestamp}.csv"
+    def _execute_python(self, timestamp, size_tag, size, response):
+        filename = f"python{size_tag}_{timestamp}.csv"
         filepath = os.path.join(RESULTS_DIR, filename)
 
-        print(f"  → Ejecutando Python...")
+        size_info = f" (tamaño {size})" if size else ""
+        print(f"  → Ejecutando Python{size_info}...")
         start = time.perf_counter()
-        success, stdout, stderr = self._run_process(
-            [sys.executable, "-m", "python.main", "--output", filepath]
-        )
+        success, stdout, stderr = self._run_process(self._build_python_cmd(filepath, size))
         elapsed = time.perf_counter() - start
         response["timings"]["python"] = round(elapsed, 2)
 
@@ -218,30 +234,28 @@ class APIHandler(http.server.BaseHTTPRequestHandler):
             response["errors"].append(f"Python falló: {stderr[:500]}")
             print(f"  ✗ Python falló: {stderr[:200]}")
 
-    def _execute_comparison(self, timestamp, response):
+    def _execute_comparison(self, timestamp, size_tag, size, response):
         """Ejecuta Java y Python concurrentemente para comparación justa."""
-        java_filename = f"java_{timestamp}.csv"
-        python_filename = f"python_{timestamp}.csv"
+        java_filename = f"java{size_tag}_{timestamp}.csv"
+        python_filename = f"python{size_tag}_{timestamp}.csv"
         java_path = os.path.join(RESULTS_DIR, java_filename)
         python_path = os.path.join(RESULTS_DIR, python_filename)
 
         results_holder = {"java": None, "python": None}
 
         def run_java():
-            print(f"  → Ejecutando Java (comparación)...")
+            size_info = f" (tamaño {size})" if size else ""
+            print(f"  → Ejecutando Java (comparación){size_info}...")
             start = time.perf_counter()
-            success, stdout, stderr = self._run_process(
-                ["java", "-cp", JAVA_OUT_DIR, "main.Main", "--output", java_path]
-            )
+            success, stdout, stderr = self._run_process(self._build_java_cmd(java_path, size))
             elapsed = time.perf_counter() - start
             results_holder["java"] = (success, stdout, stderr, elapsed)
 
         def run_python():
-            print(f"  → Ejecutando Python (comparación)...")
+            size_info = f" (tamaño {size})" if size else ""
+            print(f"  → Ejecutando Python (comparación){size_info}...")
             start = time.perf_counter()
-            success, stdout, stderr = self._run_process(
-                [sys.executable, "-m", "python.main", "--output", python_path]
-            )
+            success, stdout, stderr = self._run_process(self._build_python_cmd(python_path, size))
             elapsed = time.perf_counter() - start
             results_holder["python"] = (success, stdout, stderr, elapsed)
 

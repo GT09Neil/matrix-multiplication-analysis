@@ -103,6 +103,29 @@
         #btnExecute:hover { transform: scale(1.03); box-shadow: 0 6px 24px -4px rgba(249,115,22,0.4); }
         #btnExecute:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 
+        /* ── Size selector ── */
+        .size-row {
+            display: flex; align-items: center; justify-content: center;
+            gap: 0.8rem; margin-top: 1.2rem; flex-wrap: wrap;
+            padding: 0.8rem 1.2rem;
+            background: rgba(10,14,26,0.35);
+            border-radius: 0.6rem;
+            border: 1px solid var(--border);
+        }
+        .size-label { font-size: 0.85rem; font-weight: 500; color: var(--text-dim); }
+        .size-select {
+            background: #0a0e1a; border: 1px solid #1e293b; color: white;
+            padding: 0.55rem 1rem; border-radius: 0.5rem; outline: none;
+            cursor: pointer; font-family: inherit; font-size: 0.85rem;
+            transition: border-color 0.3s; min-width: 160px;
+        }
+        .size-select:hover, .size-select:focus { border-color: var(--accent-python); }
+        .size-warning {
+            font-size: 0.75rem; color: #fbbf24;
+            background: rgba(251,191,36,0.1); padding: 0.3rem 0.7rem;
+            border-radius: 0.4rem; border: 1px solid rgba(251,191,36,0.2);
+        }
+
         /* ── Status ── */
         .status { text-align: center; margin-top: 1rem; }
         .status-text { font-size: 0.85rem; color: var(--text-dim); }
@@ -261,6 +284,26 @@
                 <div class="mode-desc">Ejecutar ambos y comparar lado a lado</div>
             </div>
         </div>
+
+        <!-- Size selection -->
+        <div class="size-row">
+            <div class="size-label">📐 Tamaño de matriz:</div>
+            <select id="matrixSize" class="size-select">
+                <option value="">Todos (16–128)</option>
+                <option value="2">2 × 2</option>
+                <option value="4">4 × 4</option>
+                <option value="8">8 × 8</option>
+                <option value="16">16 × 16</option>
+                <option value="32">32 × 32</option>
+                <option value="64">64 × 64</option>
+                <option value="128">128 × 128</option>
+                <option value="256">256 × 256</option>
+                <option value="512">512 × 512</option>
+                <option value="1024">1024 × 1024</option>
+            </select>
+            <span class="size-warning hidden" id="sizeWarning">⚠️ Tamaños ≥ 256 pueden tomar varios minutos</span>
+        </div>
+
         <div class="exec-row">
             <button id="btnExecute">▶ Ejecutar Análisis</button>
         </div>

@@ -16,6 +16,7 @@ let chartInstance = null;
 let currentMode = 'java';
 let currentSize = null;
 let currentView = 'cases';
+let selectedMatrixSize = null;  // null = all default sizes
 let isExecuting = false;
 
 // ── Referencias DOM ──
@@ -41,6 +42,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Execute button
     btnExecute.addEventListener('click', executeAnalysis);
+
+    // Matrix size selector
+    const matrixSizeSelect = document.getElementById('matrixSize');
+    const sizeWarning = document.getElementById('sizeWarning');
+    matrixSizeSelect.addEventListener('change', () => {
+        const val = matrixSizeSelect.value;
+        selectedMatrixSize = val ? parseInt(val) : null;
+        // Show warning for large sizes
+        if (selectedMatrixSize && selectedMatrixSize >= 256) {
+            sizeWarning.classList.remove('hidden');
+        } else {
+            sizeWarning.classList.add('hidden');
+        }
+    });
 
     // Size filter
     sizeFilter.addEventListener('change', () => {
@@ -72,13 +87,17 @@ async function executeAnalysis() {
     isExecuting = true;
 
     btnExecute.disabled = true;
-    setStatus('loading', `Ejecutando análisis en modo "${currentMode}"... Esto puede tomar unos segundos.`);
+    const sizeLabel = selectedMatrixSize ? `${selectedMatrixSize}×${selectedMatrixSize}` : 'todos los tamaños';
+    setStatus('loading', `Ejecutando ${currentMode} (${sizeLabel})... Esto puede tomar unos segundos.`);
 
     try {
+        const body = { mode: currentMode };
+        if (selectedMatrixSize) body.size = selectedMatrixSize;
+
         const response = await fetch('/api/execute', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mode: currentMode })
+            body: JSON.stringify(body)
         });
 
         const result = await response.json();
