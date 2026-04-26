@@ -295,12 +295,9 @@ class APIHandler(http.server.BaseHTTPRequestHandler):
             result = subprocess.run(
                 cmd, cwd=PROJECT_DIR,
                 capture_output=True, text=True,
-                encoding='utf-8', errors='replace',
-                timeout=1800
+                encoding='utf-8', errors='replace'
             )
             return result.returncode == 0, result.stdout, result.stderr
-        except subprocess.TimeoutExpired:
-            return False, "", "Timeout: el proceso excedió 30 minutos"
         except Exception as e:
             return False, "", str(e)
 
