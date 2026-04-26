@@ -1,0 +1,16 @@
+algoritmo,tamaño,promedio_ms,min_ms,max_ms,num_ejecuciones
+NaivOnArray,256,89.2001,74.1859,104.2142,2
+NaivLoopUnrollingTwo,256,91.2581,72.6847,109.8315,2
+NaivLoopUnrollingFour,256,84.3835,62.1469,106.6200,2
+WinogradOriginal,256,108.9639,67.0856,150.8421,2
+WinogradScaled,256,71.3762,65.9571,76.7952,2
+StrassenNaiv,256,2032.3588,2001.1590,2063.5585,2
+StrassenWinograd,256,2202.5925,1722.0127,2683.1722,2
+CC_SequentialBlock,256,126.8828,76.1038,177.6618,2
+CC_ParallelBlock,256,84.1335,36.4616,131.8053,2
+RC_SequentialBlock,256,81.2119,56.3662,106.0576,2
+RC_ParallelBlock,256,70.8329,23.9843,117.6814,2
+RC_EnhancedParallelBlock,256,74.7850,53.2573,96.3127,2
+RR_SequentialBlock,256,91.3485,77.7396,104.9573,2
+RR_ParallelBlock,256,69.2243,32.6142,105.8343,2
+RR_EnhancedParallelBlock,256,66.5733,61.5035,71.6431,2

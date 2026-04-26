@@ -74,7 +74,7 @@ El servidor se inicia en **http://localhost:8080**.
    - **☕ Java** → ejecuta los 15 algoritmos solo en Java
    - **🐍 Python** → ejecuta los 15 algoritmos solo en Python
    - **⚡ Comparación** → ejecuta ambos lenguajes simultáneamente
-3. Seleccionar el **tamaño de matriz** (2 a 1024, potencias de 2) o "Todos" para los predeterminados
+3. Seleccionar el **tamaño de matriz** (2 a 2048, potencias de 2) o "Todos" para los predeterminados
 4. Presionar **▶ Ejecutar Análisis**
 5. Los resultados se cargan y grafican **automáticamente**
 
@@ -179,7 +179,7 @@ Cuando el usuario selecciona **Comparación**, el servidor ejecuta Java y Python
 | Función | Descripción |
 |---|---|
 | **Selección de modo** | Tarjetas interactivas para Java, Python o Comparación |
-| **Selección de tamaño** | Dropdown con potencias de 2 (2 a 1024) + advertencia para tamaños grandes |
+| **Selección de tamaño** | Dropdown con potencias de 2 (2 a 2048) + advertencia para tamaños grandes |
 | **Ejecución automática** | Un clic ejecuta los algoritmos y carga los resultados |
 | **Filtro por tamaño** | Selector dinámico según los tamaños disponibles |
 | **Vista por caso** | Barras agrupadas por caso de prueba |

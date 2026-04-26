@@ -1,0 +1,2 @@
+tamaño,CC_ParallelBlock,CC_SequentialBlock,NaivLoopUnrollingFour,NaivLoopUnrollingTwo,NaivOnArray,RC_EnhancedParallelBlock,RC_ParallelBlock,RC_SequentialBlock,RR_EnhancedParallelBlock,RR_ParallelBlock,RR_SequentialBlock,StrassenNaiv,StrassenWinograd,WinogradOriginal,WinogradScaled
+256,84.1335,126.8828,84.3835,91.2581,89.2001,74.7850,70.8329,81.2119,66.5733,69.2243,91.3485,2032.3588,2202.5925,108.9639,71.3762

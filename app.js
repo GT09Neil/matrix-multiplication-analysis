@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const val = matrixSizeSelect.value;
         selectedMatrixSize = val ? parseInt(val) : null;
         // Show warning for large sizes
-        if (selectedMatrixSize && selectedMatrixSize >= 256) {
+        if (selectedMatrixSize && selectedMatrixSize >= 512) {
             sizeWarning.classList.remove('hidden');
         } else {
             sizeWarning.classList.add('hidden');
